@@ -74,5 +74,5 @@ Archived code:
 
 ## Contact
 
-[Your name] — [email]
-[Lab / Department, Institution]
+Dinuka Jayasuriya | Department of Biological Sciences, Clemson University
+djayasu@g.clemson.edu
