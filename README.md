@@ -53,10 +53,10 @@ install.packages(c("dplyr","tidyr","stringr","pheatmap","RColorBrewer",
 
 ## Data availability
 
-- **Sequence data:** NCBI BioProject [ACCESSION — fill in]
+- **Sequence data:** NCBI Project PRJNA432171
 - **Environmental / sampling metadata:** BCO-DMO,
   http://lod.bco-dmo.org/id/dataset/565451 (Campbell, 2016)
-- **Custom DIAMOND database & archived code:** Zenodo, DOI: [FILL IN]
+- **Custom DIAMOND database & archived code:** Jayasuriya D. (2026). Custom DIAMOND Protein Database for Hydrocarbon Degradation Genes in Estuarine Surface Water Metagenomes and Metatranscriptomes (v1.0.0). Zenodo. https://doi.org/10.5281/zenodo.20940772
 
 ---
 
