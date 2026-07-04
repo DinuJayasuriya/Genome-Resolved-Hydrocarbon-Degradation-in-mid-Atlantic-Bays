@@ -1,108 +1,124 @@
 # Figure1_MAG_relative_abundance.R
 # Script to generate Figure1 of the manuscript.
 # # =============================================================================
-# Figure 7 — Co-expression networks of hydrocarbon-degrading MAGs
+# Figure 1 — Relative abundance of hydrocarbon-degrading MAGs
 # -----------------------------------------------------------------------------
-# For each focal taxon (Burkholderiales, Pseudomonadales), builds a bipartite
-# MAG x metabolic-category network from summed, log2-transformed expression.
-# Nodes are MAGs (green) or metabolic categories (gold); an edge connects a MAG
-# to a category it expresses, edge width = normalized mean expression of that
-# category in the MAG, and category node size = number of connected MAGs (degree).
-# (Panel A of Figure 7, the marker-gene presence/absence heatmap, is generated
-#  separately.)
+# Stacked bar chart of MAG relative abundance (from RPKG/CPM), restricted to
+# hydrocarbon-degrading MAGs in the top 15 taxonomic Classes, colored by Order,
+# faceted by season. MAGs outside the top 15 Classes are pooled as "Others".
 #
-# Input (per taxon): an Excel file with columns
-#   mags, order, gene.name, category, pathway, + one column per sample.
-# Output: a co-expression network figure per taxon.
+# Inputs:
+#   data/MAG_abundance.csv   - abundance table (MAG column + one column per sample)
+#   data/taxonomy.csv        - Genome, Domain..Species
+#   data/metadata.csv        - Genome (= Sample ID), Bay, Season, Salinity_class
+#   data/Hydrocarbon_MAGs.csv- Genome column listing HC-degrading MAG IDs
+# Output:
+#   Figure1_MAG_relative_abundance.pdf
 # =============================================================================
 
-library(readxl)
-library(dplyr)
-library(stringr)
-library(igraph)
-library(ggraph)
-library(ggplot2)
+library(tidyverse)
+library(paletteer)
+library(ggh4x)     # nested faceting (Season x Salinity)
 
-# ---- input files (edit paths) -----------------------------------------------
-taxon_files <- c(
-  Burkholderiales = "data/Burkholderiales_gene_summed.xlsx",
-  Pseudomonadales = "data/Pseudomonadales_gene_summed.xlsx"
-)
+# ---- input files ------------------------------------------------------------
+abundance_file <- "data/MAG_abundance.csv"
+taxonomy_file  <- "data/taxonomy.csv"
+metadata_file  <- "data/metadata.csv"
+hc_mags_file   <- "data/Hydrocarbon_MAGs.csv"
 
-# five metabolic categories, fixed order and colors
-category_levels <- c("Hydrocarbon degradation", "C1 metabolism",
-                     "Complex carbon degradation", "Fermentation",
-                     "Central carbon metabolism")
+N_TOP_CLASSES  <- 15
 
-# =============================================================================
-# Build a co-expression network for one taxon
-# =============================================================================
-build_network <- function(path, taxon_name) {
+# ---- 1. Load ----------------------------------------------------------------
+abund <- read.csv(abundance_file, check.names = FALSE)
+rownames(abund) <- abund$MAG
+abund <- abund %>% select(-MAG)
 
-  df <- read_excel(path)
-  names(df) <- tolower(gsub(" ", "_", names(df)))
+taxonomy <- read.csv(taxonomy_file, check.names = FALSE)
+metadata <- read.csv(metadata_file, check.names = FALSE)
+hc_mags  <- read.csv(hc_mags_file,  check.names = FALSE)$Genome
 
-  meta_cols  <- c("mags", "order", "gene.name", "category", "pathway")
-  count_cols <- setdiff(names(df), meta_cols)
+# ---- 2. Relative abundance (% per sample) -----------------------------------
+rel <- abund %>% mutate(across(everything(), ~ . / sum(.) * 100))
 
-  # numeric counts; stop if any non-numeric
-  df[count_cols] <- lapply(df[count_cols], as.numeric)
-  if (any(is.na(df[count_cols]))) stop("NA values in count columns of ", path)
+# ---- 3. Keep only hydrocarbon-degrading MAGs --------------------------------
+rel_hc <- rel[rownames(rel) %in% hc_mags, ]
 
-  # recode category into the five standard groups
-  cat_clean <- df$category %>% str_trim() %>% str_to_lower() %>% str_replace_all("\\s+", " ")
-  df$category <- factor(case_when(
-    str_detect(cat_clean, "hydrocarbon") ~ "Hydrocarbon degradation",
-    str_detect(cat_clean, "^c1")         ~ "C1 metabolism",
-    str_detect(cat_clean, "complex")     ~ "Complex carbon degradation",
-    str_detect(cat_clean, "ferment")     ~ "Fermentation",
-    str_detect(cat_clean, "central")     ~ "Central carbon metabolism",
-    TRUE                                 ~ NA_character_
-  ), levels = category_levels)
+# ---- 4. Top 15 Classes; pool everything else as "Others" --------------------
+top_classes <- rel_hc %>%
+  rownames_to_column("Genome") %>%
+  left_join(taxonomy %>% select(Genome, Class), by = "Genome") %>%
+  pivot_longer(-c(Genome, Class), names_to = "Sample", values_to = "Abundance") %>%
+  group_by(Class, Sample) %>%
+  summarise(tot = sum(Abundance, na.rm = TRUE), .groups = "drop") %>%
+  group_by(Class) %>%
+  summarise(mean_ab = mean(tot), .groups = "drop") %>%
+  slice_max(mean_ab, n = N_TOP_CLASSES) %>%
+  pull(Class)
 
-  # log2 expression, MAG number
-  mat_log <- log2(as.matrix(df[, count_cols]) + 1)
-  df$mag_num <- as.numeric(str_extract(tolower(df$mags), "(?<=_mag_)\\d+"))
+in_top  <- rel_hc[rownames(rel_hc) %in%
+                    (taxonomy %>% filter(Class %in% top_classes) %>% pull(Genome)), ]
+out_top <- rel_hc[!rownames(rel_hc) %in% rownames(in_top), ]
 
-  # mean expression per MAG x category  ->  bipartite edges
-  df$row_mean <- rowMeans(mat_log)
-  agg <- df %>%
-    group_by(mag_num, category) %>%
-    summarise(mean_expr = mean(row_mean), .groups = "drop")
+plot_mat <- in_top
+if (nrow(out_top) > 0) plot_mat <- rbind(plot_mat, Others = colSums(out_top))
 
-  edges <- data.frame(
-    from   = as.character(agg$mag_num),
-    to     = as.character(agg$category),
-    weight = agg$mean_expr / max(agg$mean_expr)
+# ---- 5. Long format + taxonomy + metadata -----------------------------------
+tax <- taxonomy %>% select(Genome, Class, Order) %>%
+  bind_rows(data.frame(Genome = "Others", Class = "Others", Order = "Others"))
+
+plot_data <- plot_mat %>%
+  rownames_to_column("Genome") %>%
+  pivot_longer(-Genome, names_to = "Sample", values_to = "Abundance") %>%
+  left_join(tax, by = "Genome") %>%
+  left_join(metadata %>% select(Genome, Bay, Season, Salinity_class),
+            by = c("Sample" = "Genome")) %>%
+  mutate(
+    Bay            = factor(Bay, levels = c("CP", "DE")),
+    Season         = factor(Season, levels = c("Spring", "Summer", "Fall")),
+    Salinity_class = factor(Salinity_class, levels = c("Low", "Medium", "High")),
+    Class          = replace_na(Class, "Others"),
+    Order          = replace_na(Order, "Others")
   )
-  nodes <- data.frame(name = unique(c(edges$from, edges$to)))
-  nodes$type <- ifelse(nodes$name %in% edges$from, "MAG", "Category")
 
-  g <- graph_from_data_frame(edges, vertices = nodes, directed = FALSE)
-  V(g)$degree <- igraph::degree(g)
+# order samples by season then bay; order MAGs by class/order/abundance
+sample_order <- plot_data %>% distinct(Sample, Season, Bay) %>%
+  arrange(Season, Bay) %>% pull(Sample)
+plot_data$Sample <- factor(plot_data$Sample, levels = sample_order)
 
-  # ---- plot: category labels bold, MAG labels small; node size = degree ----
-  p <- ggraph(g, layout = "fr") +
-    geom_edge_link(aes(width = weight, alpha = weight), color = "grey40") +
-    geom_node_point(aes(color = type, size = degree)) +
-    geom_node_text(aes(label = ifelse(type == "MAG", name, NA)),
-                   repel = TRUE, size = 3) +
-    geom_node_text(aes(label = ifelse(type == "Category", name, NA)),
-                   repel = FALSE, fontface = "bold", size = 4.5, color = "black") +
-    scale_size(range = c(4, 16)) +
-    scale_edge_width(range = c(0.2, 2)) +
-    scale_color_manual(values = c(MAG = "darkgreen", Category = "goldenrod")) +
-    theme_void() +
-    ggtitle(paste0(taxon_name, " co-expression network"))
+mag_order <- plot_data %>%
+  group_by(Genome, Class, Order) %>%
+  summarise(m = mean(Abundance), .groups = "drop") %>%
+  arrange(Class, Order, desc(m)) %>% pull(Genome)
+plot_data$Genome <- factor(plot_data$Genome, levels = rev(mag_order))
 
-  ggsave(paste0("Figure7_network_", taxon_name, ".pdf"), p, width = 9, height = 8)
-  cat("Saved Figure7_network_", taxon_name, ".pdf\n", sep = "")
-  invisible(g)
-}
+# ---- 6. Colors: one per Order (nested in Class), Others = grey ---------------
+orders <- plot_data %>% filter(Order != "Others") %>%
+  distinct(Class, Order) %>% arrange(Class, Order) %>% pull(Order)
+pal <- colorRampPalette(as.character(paletteer_d("ggsci::nrc_npg")))(length(orders))
+order_colors <- c(setNames(pal, orders), Others = "grey80")
+plot_data$Order <- factor(plot_data$Order, levels = c(orders, "Others"))
 
-# =============================================================================
-# Run for each taxon
-# =============================================================================
-for (taxon in names(taxon_files)) {
-  build_network(taxon_files[[taxon]], taxon)
-}
+# ---- 7. Plot ----------------------------------------------------------------
+p <- ggplot(plot_data, aes(x = Sample, y = Abundance, fill = Order)) +
+  geom_bar(stat = "identity", width = 0.9) +
+  facet_grid(. ~ Season, scales = "free_x", space = "free_x") +
+  scale_fill_manual(values = order_colors, name = "Order") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 40),
+                     breaks = seq(0, 40, 10)) +
+  labs(x = NULL, y = "Relative abundance (%)") +
+  theme_minimal(base_size = 11) +
+  theme(
+    axis.text.x        = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 8),
+    axis.title.y       = element_text(face = "bold"),
+    strip.text         = element_text(face = "bold"),
+    strip.background    = element_rect(fill = "grey90", color = "black"),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor   = element_blank(),
+    panel.border       = element_rect(color = "black", fill = NA),
+    legend.key.size    = unit(0.4, "cm"),
+    legend.text        = element_text(size = 8)
+  ) +
+  guides(fill = guide_legend(ncol = 1))
+
+ggsave("Figure1_MAG_relative_abundance.pdf", p, width = 16, height = 8)
+cat("Figure1_MAG_relative_abundance.pdf saved.\n")
