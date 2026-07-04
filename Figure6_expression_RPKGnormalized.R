@@ -20,7 +20,7 @@ CONTRAST_LIMIT <- 2
 # ======================================================
 # 1. Load expression data (RPKG-normalized)
 # ======================================================
-cat("Select RPKG-normalized file (HC_RPKGnormalized_GENELEVEL.csv):\n")
+cat("Select RPKG-normalized file (Normalized HC genes.csv):\n")
 expr_in <- read.csv(file.choose(), row.names = 1, check.names = FALSE)
 # NOTE: row.names = 1 -> Gene column becomes rownames (matches your original style).
 # If the file's first column is 'Gene', this makes genes the rownames.
