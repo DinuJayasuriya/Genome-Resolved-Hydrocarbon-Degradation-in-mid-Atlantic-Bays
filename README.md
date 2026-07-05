@@ -32,7 +32,7 @@ The analyses combine two complementary approaches:
 | `Figure3_gene_abundance_heatmap.R` | Figure 3 | HC-degradation gene abundance within MAGs (log10 RPKG) |
 | `Figure4_dbRDA.R` | Figure 4 | Distance-based redundancy analysis of HC-degrading MAGs |
 | `Figure5_gene_environment_correlation.R` | Figure 5 | Spearman correlation matrix, genes vs environmental variables |
-| `Figure6_expression_RPKGnormalized.R` | Figure 6 | Expression heatmap (log10, row Z-score) |
+| `Figure6_expression_RPKGnormalized.R` | Figure 6 | Expression heatmap (normalized expression, row Z-score) |
 | `Figure7_metabolic_network.R` | Figure 7 | Marker-gene presence/absence + MAG × category co-expression networks |
 
 ---
