@@ -64,8 +64,8 @@ Patabandige DLJ, John J, Ortiz M, Campbell BJ. 2026. Environmental gradients sha
 
 Archived code:
 
-> [Author list]. [Year]. Analysis code for "Environmental Gradients Shape the
-> Hydrocarbon-Degrading Microbiome in Two Mid-Atlantic Bays." Zenodo. DOI: [FILL IN]
+> Analysis code for "Environmental Gradients Shape the
+> Hydrocarbon-Degrading Microbiome in Two Mid-Atlantic Bays." Zenodo. DOI: https://doi.org/10.5281/zenodo.21201057
 
 ---
 
