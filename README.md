@@ -2,8 +2,7 @@
 
 Analysis code for the manuscript:
 
-**Patabandige et al.** "Environmental Gradients Shape the Hydrocarbon-Degrading
-Microbiome in Two Mid-Atlantic Bays." *mSystems* (in review).
+Patabandige DLJ, John J, Ortiz M, Campbell BJ. 2026. Environmental gradients shape the hydrocarbon-degrading microbiome in two mid-Atlantic bays. mSystems 0:e00866-26. https://doi.org/10.1128/msystems.00866-26
 
 Scripts to analyze hydrocarbon-degradation gene content and expression in
 metagenome-assembled genomes (MAGs) from surface waters of the Chesapeake and
@@ -61,8 +60,7 @@ install.packages(c("dplyr","tidyr","stringr","pheatmap","RColorBrewer",
 
 ## Citation
 
-> Patabandige et al. Environmental Gradients Shape the Hydrocarbon-Degrading
-> Microbiome in Two Mid-Atlantic Bays. mSystems (in review).
+Patabandige DLJ, John J, Ortiz M, Campbell BJ. 2026. Environmental gradients shape the hydrocarbon-degrading microbiome in two mid-Atlantic bays. mSystems 0:e00866-26. https://doi.org/10.1128/msystems.00866-26.
 
 Archived code:
 
